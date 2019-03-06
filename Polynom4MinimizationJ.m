@@ -1,4 +1,4 @@
-function Polynom4MinimizationJ;
+% function Polynom4MinimizationJ;
 clc
 clear all
 
@@ -8,8 +8,8 @@ y = [6,7,8,9]; % y = [y0, y'0, yt, y't]
 
 time = 3;
 time_int = 0:0.001:time; 
-maxVelocity = 5;
-maxAcceleration = 5;
+maxVelocity = 50;
+maxAcceleration = 50;
 initApprox = [0,0,0];
 
 % коэфф для многочленов Px и Py 4-ых степеней a2=a2(a4)...b3=b3(b4)
@@ -42,35 +42,18 @@ intExpression = polynomX^2+polynomY^2+dpolynomX^2+dpolynomY^2+ddpolynomX^2+ddpol
 J = 0.5*int(intExpression,0,time)-t*1e-9;
 Jhandle = matlabFunction(J);
 
-% минимизируем этот ф-л с ограничениями и найдем a4 b4
- c = [velConstr-maxVelocity;accConstr-maxAcceleration];
-%  chandle= matlabFunction(c);
+
+global c1handle;
+global c2handle;
+c1handle=matlabFunction(velConstr-maxVelocity);
+c2handle=matlabFunction(accConstr-maxAcceleration);
 
 
- c1handle=matlabFunction(velConstr-maxVelocity);
- c2handle=matlabFunction(accConstr-maxAcceleration);
- chandle={c1handle;c2handle};
-%  x = fmincon(@myfun,x0,A,b,Aeq,beq,lb,ub,@mycon)
-% where mycon is a MATLAB function such as
-% 
-% function [c,ceq] = mycon(x)
-% c = ...     % Compute nonlinear inequalities at x.
-% ceq = ...   % Compute nonlinear equalities at x.
-%  
-%  First create a function that represents the nonlinear constraint. Save this as a file named unitdisk.m on your MATLAB® path.
-% 
-% function [c,ceq] = unitdisk(x)
-% c = x(1)^2 + x(2)^2 - 1;
-% ceq = [];
- 
-% nonlcon = @unitdisk;
-
-
+nonlcon=@constraints;
  A=[0,0,1;0,0,-1];
  b=[time;0];
-%  bc = [maxVelocity; maxAcceleration]
-%  minCoeffs = fmincon(Jhandle,initApprox, Acc, bc, [], [])
-minCoeffs = fmincon(Jhandle,initApprox,A,b,[],[],[],[],chandle);
+
+minCoeffs = fmincon(Jhandle,initApprox,A,b,[],[],[],[],nonlcon);
 
 %построение многочлена, который является траекторий системы из (y0 y'0) в (0 0)
 dotsPolynomX  = polynomX(time_int);
@@ -83,4 +66,16 @@ xlabel('x')
 ylabel('y') 
 hold off
 
+% end
+
+
+
+function [c,ceq] = constraints(x,y,t)
+global c1handle;
+global c2handle;
+c =[c1handle(x,y,t);c2handle(x,y,t)];
+ceq = [];
 end
+
+
+ 
