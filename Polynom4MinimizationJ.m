@@ -3,14 +3,15 @@ clc
 clear all
 
 % начальное и конечное положения системы, время 
-x = [1,2,3,4]; % x = [x0, x'0, xt, x't]
-y = [6,7,8,9]; % y = [y0, y'0, yt, y't] 
+x = [1,1,3,0]; % x = [x0, x'0, xt, x't]
+y = [6,1,8,0]; % y = [y0, y'0, yt, y't] 
 
-time = 3;
-time_int = 0:0.001:time; 
-maxVelocity = 50;
-maxAcceleration = 50;
-initApprox = [0,0,0];
+time = 10;
+time_int = 0:0.1:time; 
+maxVelocity = 1.6-0.05;
+maxAcceleration = 2;
+initApprox = [0,0];
+optCoeffs = [-1,-1];
 
 % коэфф для многочленов Px и Py 4-ых степеней a2=a2(a4)...b3=b3(b4)
 syms a4 b4
@@ -39,26 +40,54 @@ accConstr = sqrt(ddpolynomX^2+ddpolynomY^2);
 
 % функционал потерь
 intExpression = polynomX^2+polynomY^2+dpolynomX^2+dpolynomY^2+ddpolynomX^2+ddpolynomY^2;
-J = 0.5*int(intExpression,0,time)-t*1e-9;
-Jhandle = matlabFunction(J);
+J = 0.5*int(intExpression,0,time);
 
+% минимизация функционала
+global Jhandle;
+Jhandle = matlabFunction(J);
 
 global c1handle;
 global c2handle;
 c1handle=matlabFunction(velConstr-maxVelocity);
 c2handle=matlabFunction(accConstr-maxAcceleration);
+global timemoment;
 
-
+for tparam = 0:0.1:time
+timemoment=tparam;
 nonlcon=@constraints;
- A=[0,0,1;0,0,-1];
- b=[time;0];
+minCoeffs = fmincon(@fun,initApprox,[],[],[],[],[],[],nonlcon);
+disturb1=c1handle(minCoeffs(1),minCoeffs(2),time_int) > 0.01;
+disturb2=c2handle(minCoeffs(1),minCoeffs(2),time_int) > 0.01;
 
-minCoeffs = fmincon(Jhandle,initApprox,A,b,[],[],[],[],nonlcon);
+if not(any(disturb1) || any(disturb2))
+   optCoeffs =vertcat(optCoeffs,minCoeffs);
+end
+end
+[m,n]=size(optCoeffs);
+currval=Jhandle(optCoeffs(2,1),optCoeffs(2,2));
+imin=2;
+if m>1
+   for i = 2:1:m 
+       if Jhandle(optCoeffs(i,1),optCoeffs(i,2))<currval
+          currval= Jhandle(optCoeffs(i,1),optCoeffs(i,2));
+          imin=i;
+       end
+   end
 
-%построение многочлена, который является траекторий системы из (y0 y'0) в (0 0)
-dotsPolynomX  = polynomX(time_int);
-dotsPolynomY  = polynomY(time_int);
+% траектории, скорость, ускорение через полученный коэфф
+polynomXopt=matlabFunction(polynomX);
+polynomYopt=matlabFunction(polynomY);
 
+velocity=matlabFunction(velConstr);
+acceleration=matlabFunction(accConstr);
+
+dotsPolynomX=polynomXopt(optCoeffs(imin,1),time_int);
+dotsPolynomY=polynomYopt(optCoeffs(imin,2),time_int);
+
+dotsVel=velocity(optCoeffs(imin,1),optCoeffs(imin,2),time_int);
+dotsAcc=acceleration(optCoeffs(imin,1),optCoeffs(imin,2),time_int);
+
+% визуализация
 figure
 hold on
 plot(dotsPolynomX,dotsPolynomY,'Red', 'LineWidth', 1.5);
@@ -66,16 +95,32 @@ xlabel('x')
 ylabel('y') 
 hold off
 
-% end
+figure
+hold on
+plot(time_int,dotsVel,'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('v') 
+hold off
 
+figure
+hold on
+plot(time_int,dotsAcc,'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('a') 
+hold off
+end
 
-
-function [c,ceq] = constraints(x,y,t)
+function [c,ceq] = constraints(x)
 global c1handle;
 global c2handle;
-c =[c1handle(x,y,t);c2handle(x,y,t)];
+global timemoment;
+c =[c1handle(x(1),x(2),timemoment);c2handle(x(1),x(2),timemoment)];
 ceq = [];
 end
 
+function f = fun(x)
+global Jhandle;
+f =Jhandle(x(1),x(2));
+end
 
  
