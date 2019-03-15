@@ -3,12 +3,12 @@ clc
 clear all
 
 % начальное и конечное положения системы, время 
-x = [1,1,3,0]; % x = [x0, x'0, xt, x't]
-y = [6,1,8,0]; % y = [y0, y'0, yt, y't] 
+x = [1,0,3,0]; % x = [x0, x'0, xt, x't]
+y = [6,0,8,0]; % y = [y0, y'0, yt, y't] 
 
 time = 10;
 time_int = 0:0.1:time; 
-maxVelocity = 1.6-0.05;
+maxVelocity = 0.5-0.05;
 maxAcceleration = 2;
 initApprox = [0,0];
 optCoeffs = [-1,-1];
