@@ -1,36 +1,34 @@
 % 1 подход - разбиваем задачу минимизации на несколькo
 % последовательных задач
-clc; clear all;
+%clc; clear all;
    
-% начальное и конечное положения системы, время 
-x = [0,0,1,0]; % x = [x0, x'0, xt, x't]
-y = [0,0,1,0]; % y = [y0, y'0, yt, y't] 
+% начальное и конечное положения системы
+xData = [0,0,1,0]; % x = [x0, x'0, xt, x't]
+yData = [0,0,1,0]; % y = [y0, y'0, yt, y't] 
 
 % механические ограничения
-centerA = [0.3 0.4]; 
-rA = 0.08;
-centerB = [0.6 0.5]; 
-rB = 0.08;
+mechA = [0.3, 0.4, 0.08]; 
+mechB = [0.6, 0.5, 0.08]; 
+mechC = [0.7, 0.75, 0.08];
 
 time = 3;
-maxVelocity = 0.6;
+maxVelocity = 0.8;
 maxAcceleration = 2;
-initApprox = [1,1];
 
 % коэфф для многочленов Px и Py 4-ых степеней a2=a2(a4)...b3=b3(b4)
 syms a4 b4
 LeftSideX = [time^2, time^3; 2*time, 3*time^2];
-RightSideX = [x(3)-x(1)-x(2)*time-a4*time^4; x(4)-x(2)-4*a4*time^3];
+RightSideX = [xData(3)-xData(1)-xData(2)*time-a4*time^4; xData(4)-xData(2)-4*a4*time^3];
 LeftSideY = [time^2, time^3; 2*time, 3*time^2];
-RightSideY = [y(3)-y(1)-y(2)*time-b4*time^4; y(4)-y(2)-4*b4*time^3];
+RightSideY = [yData(3)-yData(1)-yData(2)*time-b4*time^4; yData(4)-yData(2)-4*b4*time^3];
 
 coeffsPolynomX = LeftSideX \ RightSideX;
 coeffsPolynomY = LeftSideY \ RightSideY;
 
 % многочлены Px и Py
 syms t
-polynomX =  x(1)+x(2)*t+t.^2*coeffsPolynomX(1)+t.^3*coeffsPolynomX(2)+t.^4*a4;
-polynomY = y(1)+y(2)*t+t.^2*coeffsPolynomY(1)+t.^3*coeffsPolynomY(2)+t.^4*b4;
+polynomX =  xData(1)+xData(2)*t+t.^2*coeffsPolynomX(1)+t.^3*coeffsPolynomX(2)+t.^4*a4;
+polynomY = yData(1)+yData(2)*t+t.^2*coeffsPolynomY(1)+t.^3*coeffsPolynomY(2)+t.^4*b4;
 
 % нахождение Px', Px", Py', Py"
 dpolynomX = diff(polynomX, t);
@@ -43,60 +41,70 @@ velConstr = sqrt(dpolynomX^2+dpolynomY^2);
 accConstr = sqrt(ddpolynomX^2+ddpolynomY^2);
 
 % механические ограничения
-mechConstrA = (polynomX-centerA(1))^2+(polynomY-centerA(2))^2;
-mechConstrB = (polynomX-centerB(1))^2+(polynomY-centerB(2))^2;
+mechConstrA = (polynomX-mechA(1))^2+(polynomY-mechA(2))^2;
+mechConstrB = (polynomX-mechB(1))^2+(polynomY-mechB(2))^2;
+mechConstrC = (polynomX-mechC(1))^2+(polynomY-mechC(2))^2;
 
-% функционал потерь
+% целевой функционал 
 intExpression = polynomX^2+polynomY^2+dpolynomX^2+dpolynomY^2+ddpolynomX^2+ddpolynomY^2;
 J = 0.5*int(intExpression,0,time);
 
-global Jhandle;
-Jhandle = matlabFunction(J);
-
-global c1handle;
-global c2handle;
-global c3handle;
-global c4handle;
 global timemoment;
+global Jhandle; Jhandle = matlabFunction(J);
+global c1handle; c1handle=matlabFunction(-velConstr-maxVelocity);
+global c2handle; c2handle=matlabFunction(-accConstr-maxAcceleration);
+global c3handle; c3handle=matlabFunction(-mechConstrA+mechA(3)^2+0.003);
+global c4handle; c4handle=matlabFunction(-mechConstrB+mechB(3)^2+0.003);
+global c5handle; c5handle=matlabFunction(-mechConstrC+mechC(3)^2+0.003);
 
-c1handle=matlabFunction(-velConstr-maxVelocity);
-c2handle=matlabFunction(-accConstr-maxAcceleration);
-c3handle=matlabFunction(-mechConstrA+rA^2);
-c4handle=matlabFunction(-mechConstrB+rB^2);
-
-h = 0.1; time_int = 0:h:time; 
+h = 0.01; time_int = 0:h:time; 
 optCoeffs = zeros(round(time/h)+1,2); 
 
 i = 1;
 for tparam = 0:h:time
 timemoment=tparam;
-nonlcon=@constraintsMech;
+nonlcon=@constraints;
 rng default;
 gs = GlobalSearch;
-problem = createOptimProblem('fmincon', 'x0', initApprox, 'objective', @fun, 'nonlcon', nonlcon);
+problem = createOptimProblem('fmincon', 'x0', [1,1], 'objective', @fun, 'nonlcon', nonlcon);
 minCoeffs = run(gs,problem);
 optCoeffs(i,1) = minCoeffs(1);
 optCoeffs(i,2) = minCoeffs(2);
 i=i+1;
 end
 
- % траектории, скорость, ускорение через полученный коэфф
+% траектории, скорость, ускорение через полученный коэфф
 polynomXopt=matlabFunction(polynomX);
 polynomYopt=matlabFunction(polynomY);
 velocityOpt=matlabFunction(velConstr);
 accelerationOpt=matlabFunction(accConstr);
 
+velocityXopt=matlabFunction(dpolynomX);
+velocityYopt=matlabFunction(dpolynomY);
+accelerationXopt=matlabFunction(ddpolynomX);
+accelerationYopt=matlabFunction(ddpolynomY);
+
 dotsPolynomX = zeros(round(time/h)+1,1); 
 dotsPolynomY = zeros(round(time/h)+1,1);
-dotsVel = zeros(round(time/h)+1,1); 
-dotsAcc = zeros(round(time/h)+1,1); 
+dotsVel = [zeros(round(time/h)+1,1), zeros(round(time/h)+1,1), zeros(round(time/h)+1,1)]; % vx, vy, |v|
+dotsAcc = [zeros(round(time/h)+1,1), zeros(round(time/h)+1,1), zeros(round(time/h)+1,1)]; % ax, ay, |a|
+
+maxVelocityList =  maxVelocity*ones(1, length(time_int));
+maxAccelerationList =  maxAcceleration*ones(1, length(time_int));
 
 cnt = 1;
 for tparam = 0:h:time
  dotsPolynomX(cnt)=polynomXopt(optCoeffs(cnt,1),tparam);
  dotsPolynomY(cnt)=polynomYopt(optCoeffs(cnt,2),tparam);
- dotsVel(cnt)=velocityOpt(optCoeffs(cnt,1),optCoeffs(cnt,2),tparam);
- dotsAcc(cnt)=accelerationOpt(optCoeffs(cnt,1),optCoeffs(cnt,2),tparam);
+ 
+ dotsVel(cnt,1)=velocityXopt(optCoeffs(cnt,1),tparam);
+ dotsVel(cnt,2)=velocityYopt(optCoeffs(cnt,2),tparam);
+ dotsVel(cnt,3)=velocityOpt(optCoeffs(cnt,1),optCoeffs(cnt,2),tparam);
+ 
+ dotsAcc(cnt,1)=accelerationXopt(optCoeffs(cnt,1),tparam);
+ dotsAcc(cnt,2)=accelerationYopt(optCoeffs(cnt,2),tparam);
+ dotsAcc(cnt,3)=accelerationOpt(optCoeffs(cnt,1),optCoeffs(cnt,2),tparam);
+           
  cnt=cnt+1;
 end
 
@@ -105,26 +113,73 @@ figure
 hold on
 grid on;
 plot(dotsPolynomX,dotsPolynomY,'Red', 'LineWidth', 1.5);
-[x_circle,y_circle] = circle(centerA(1),centerA(2),rA); 
-plot(x_circle,y_circle,'Black', 'linewidth',1.5); fill(x_circle,y_circle,rA);
-[x_circle,y_circle] = circle(centerB(1),centerB(2),rB); 
-plot(x_circle,y_circle,'Black', 'linewidth',1.5); fill(x_circle,y_circle,rB);
+[x_circle,y_circle] = circle(mechA(1),mechA(2),mechA(3)); 
+plot(x_circle,y_circle,'Black', 'linewidth',1.5); fill(x_circle,y_circle,mechA(3));
+[x_circle,y_circle] = circle(mechB(1),mechB(2),mechB(3)); 
+plot(x_circle,y_circle,'Black', 'linewidth',1.5); fill(x_circle,y_circle,mechB(3));
+[x_circle,y_circle] = circle(mechC(1),mechC(2),mechC(3)); 
+plot(x_circle,y_circle,'Black', 'linewidth',1.5); fill(x_circle,y_circle,mechC(3));
 xlabel('x') 
 ylabel('y') 
 hold off
 
 figure
 hold on
-plot(time_int,dotsVel,'Blue', 'LineWidth', 1.5);
+plot(time_int,dotsPolynomX,'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('x') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsPolynomY,'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('y') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsVel(:,3),'Blue', 'LineWidth', 1.5);
+plot(time_int,maxVelocityList,'Red', 'LineWidth', 0.5);
 xlabel('t') 
 ylabel('v') 
 hold off
 
 figure
 hold on
-plot(time_int,dotsAcc,'Blue', 'LineWidth', 1.5);
+plot(time_int,dotsVel(:,1),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('v_x') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsVel(:,2),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('v_y') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsAcc(:,3),'Blue', 'LineWidth', 1.5);
+plot(time_int,maxAccelerationList,'Red', 'LineWidth', 0.5);
+ylim([0 maxAcceleration+0.5])
 xlabel('t') 
 ylabel('a') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsAcc(:,1),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('a_x') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsAcc(:,2),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('a_y') 
 hold off
 
 
@@ -133,19 +188,27 @@ global c1handle;
 global c2handle;
 global c3handle;
 global c4handle;
+global c5handle;
 global timemoment;
-c =[c1handle(x(1),x(2),timemoment);c2handle(x(1),x(2),timemoment);
-    c3handle(x(1),x(2),timemoment);c4handle(x(1),x(2),timemoment)];
+c =[c1handle(x(1),x(2),timemoment);c2handle(x(1),x(2),timemoment);c3handle(x(1),x(2),timemoment);
+                                   c4handle(x(1),x(2),timemoment);c5handle(x(1),x(2),timemoment)];
 ceq = [];
 end
 
 function [c,ceq] = constraintsMech(x)
-% global c1handle;
-% global c2handle;
 global c3handle;
 global c4handle;
+global c5handle;
 global timemoment;
-c = [c3handle(x(1),x(2),timemoment);c4handle(x(1),x(2),timemoment)];
+c = [c3handle(x(1),x(2),timemoment);c4handle(x(1),x(2),timemoment);c5handle(x(1),x(2),timemoment)];
+ceq = [];
+end
+
+function [c,ceq] = constraintsPhys(x)
+global c1handle;
+global c2handle;
+global timemoment;
+c = [c1handle(x(1),x(2),timemoment);c2handle(x(1),x(2),timemoment)];
 ceq = [];
 end
 
@@ -155,7 +218,6 @@ f =Jhandle(x(1),x(2));
 end
 
 function [x_circle,y_circle] = circle(x,y,r)
-% построение механических ограничений
 angle=0:0.01:2*pi; 
 xp=r*cos(angle);
 yp=r*sin(angle);
