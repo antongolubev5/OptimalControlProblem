@@ -1,11 +1,7 @@
-% function Polynom4MinimizationJ;
-% clc; clear all;
-
-% начальное и конечное положени€ системы
+%% исходные данные
 xData = [0,0,1,0]; % x = [x0, x'0, xt, x't]
 yData = [0,0,1,0]; % y = [y0, y'0, yt, y't] 
 
-% механические ограничени€
 mechA = [0.3, 0.4, 0.08]; 
 mechB = [0.6, 0.5, 0.08]; 
 mechC = [0.7, 0.75, 0.08];
@@ -19,7 +15,7 @@ initApprox = [0,0];
 maxVelocityList =  maxVelocity*ones(1, length(time_int));
 maxAccelerationList =  maxAcceleration*ones(1, length(time_int));
 
-% коэфф дл€ многочленов Px и Py 4-ых степеней a2=a2(a4)...b3=b3(b4)
+%% построение многочленов и ограничений
 syms a4 b4
 LeftSideX = [time^2, time^3; 2*time, 3*time^2];
 RightSideX = [xData(3)-xData(1)-xData(2)*time-a4*time^4; xData(4)-xData(2)-4*a4*time^3];
@@ -56,10 +52,10 @@ intExpression = polynomX^2+polynomY^2+dpolynomX^2+dpolynomY^2+ddpolynomX^2+ddpol
 J = 0.5*int(intExpression,0,time);
 global Jhandle; Jhandle = matlabFunction(J);
 
-% ограничение по скорости 
+%% ограничение на скорость      
 dvelConstr=diff(velConstr, t);
 eqn = dvelConstr == 0;
-solt = solve(eqn,t);
+[solt, param, cond] = solve(eqn,t,'ReturnConditions',true);
 leftVel=sqrt(xData(2)^2+yData(2)^2);
 rightVel=sqrt(xData(4)^2+yData(4)^2);
 
@@ -67,12 +63,11 @@ global vstar;
 vstar = @(a,b) (-maxVelocity + vpa(max([leftVel,rightVel,... 
                subs(velConstr,[a4,b4,t],[a,b,subs(solt(1),[a4,b4],[a, b])]),...
                subs(velConstr,[a4,b4,t],[a,b,subs(solt(2),[a4,b4],[a, b])]),...
-               subs(velConstr,[a4,b4,t],[a,b,subs(solt(3),[a4,b4],[a, b])])])));
-           
-% ограничение по ускорению                               
+               subs(velConstr,[a4,b4,t],[a,b,subs(solt(3),[a4,b4],[a, b])])])));           
+%% ограничение на ускорение     
 daccConstr = diff(accConstr, t);
 eqn = daccConstr == 0;
-solt = solve(eqn,t);
+[solt, param, cond] = solve(eqn,t,'ReturnConditions',true);
 leftAcc = accConstrM(a4,b4,0);
 rightAcc = accConstrM(a4,b4,time);
 
@@ -82,13 +77,13 @@ astar = @(a,b) (-maxAcceleration + vpa(max([
                subs(rightAcc,[a4,b4],[a,b]),...
                subs(accConstr,[a4,b4,t],[a,b,subs(solt(1),[a4,b4],[a, b])]),...
                subs(accConstr,[a4,b4,t],[a,b,subs(solt(2),[a4,b4],[a, b])]),...
-               subs(accConstr,[a4,b4,t],[a,b,subs(solt(3),[a4,b4],[a, b])])])));
+               subs(accConstr,[a4,b4,t],[a,b,subs(solt(3),[a4,b4],[a, b])])])));    
 %% механическое ограничение ј   
  dmechConstrA = diff(mechConstrA, t);
  eqn = dmechConstrA == 0;
  eqnnd = mechConstrA == 0;
- solt = solve(eqn,t);
- soltnd] = solve(eqnnd,t);
+ [solt, param, cond] = solve(eqn,t,'ReturnConditions',true);
+ [soltnd, param, cond] = solve(eqnnd,t,'ReturnConditions',true);
  
  global mechAstar;
  mechAstar = @(a,b) (mechA(3)^2 - min([
@@ -133,10 +128,9 @@ astar = @(a,b) (-maxAcceleration + vpa(max([
                     vpa((subs(mechConstrA,[a4,b4,t],[a,b,subs(soltnd(1),[a4,b4],[a, b])])))+...
                     (~isreal(vpa(subs(mechConstrA,[a4,b4,t],[a,b,subs(soltnd(1),[a4,b4],[a, b])]))))*1])^2);
 %% механическое ограничение B   
- % механическое ограничение B
-  dmechConstrB = diff(mechConstrB, t);
+ dmechConstrB = diff(mechConstrB, t);
  eqn = dmechConstrB == 0;
- solt = solve(eqn,t);
+ [solt, param, cond] = solve(eqn,t,'ReturnConditions',true);
  
  global mechBstar;
  mechBstar = @(a,b) (mechB(3)^2 - min([
@@ -181,11 +175,9 @@ astar = @(a,b) (-maxAcceleration + vpa(max([
                     vpa((subs(mechConstrB,[a4,b4,t],[a,b,subs(soltnd(1),[a4,b4],[a, b])])))+...
                     (~isreal(vpa(subs(mechConstrB,[a4,b4,t],[a,b,subs(soltnd(1),[a4,b4],[a, b])]))))*1])^2);
 %% механическое ограничение C   
- % механическое ограничение C
-
  dmechConstrC = diff(mechConstrC, t);
  eqn = dmechConstrC == 0;
- solt = solve(eqn,t);
+ [solt, param, cond] = solve(eqn,t,'ReturnConditions',true);
  
  global mechCstar;
  mechCstar = @(a,b) (mechC(3)^2 - min([
@@ -230,28 +222,35 @@ astar = @(a,b) (-maxAcceleration + vpa(max([
                     vpa((subs(mechConstrC,[a4,b4,t],[a,b,subs(soltnd(1),[a4,b4],[a, b])])))+...
                     (~isreal(vpa(subs(mechConstrC,[a4,b4,t],[a,b,subs(soltnd(1),[a4,b4],[a, b])]))))*1])^2);
 %%
- optCoeffs = fmincon(@fun,[-0.01,-0.01],[],[],[],[],[],[],@constrglob);            
+  optCoeffs = fmincon(@fun,[-0.01,-0.01],[],[],[],[],[],[],@constrglob);            
 % gs = GlobalSearch;
 % problem = createOptimProblem('fmincon', 'x0', [-0.01,-0.01], 'objective', @fun, 'nonlcon', @constrglob);
 % minCoeffs = run(gs,problem);                                 
 
-% траектории, скорость, ускорение через полученный коэфф
 polynomXopt=matlabFunction(polynomX);
 polynomYopt=matlabFunction(polynomY);
+velocityOpt=matlabFunction(velConstr);
+accelerationOpt=matlabFunction(accConstr);
 
-velocity=matlabFunction(velConstr);
-acceleration=matlabFunction(accConstr);
+velocityXopt=matlabFunction(dpolynomX);
+velocityYopt=matlabFunction(dpolynomY);
+accelerationXopt=matlabFunction(ddpolynomX);
+accelerationYopt=matlabFunction(ddpolynomY);
 
 dotsPolynomX=polynomXopt(optCoeffs(1),time_int);
 dotsPolynomY=polynomYopt(optCoeffs(2),time_int);
 
-dotsVel=velocity(optCoeffs(1),optCoeffs(2),time_int);
-dotsAcc=acceleration(optCoeffs(1),optCoeffs(2),time_int);
+% v_x, v_y, |v|
+dotsVel(:,1)=velocityXopt(optCoeffs(1),time_int);
+dotsVel(:,2)=velocityYopt(optCoeffs(2),time_int);
+dotsVel(:,3)=velocityOpt(optCoeffs(1),optCoeffs(2),time_int);
 
-mechConstrAM = matlabFunction(mechConstrA);
-mechConstrBM = matlabFunction(mechConstrB);
+% a_x, a_y, |a| 
+dotsAcc(:,1)=accelerationXopt(optCoeffs(1),time_int);
+dotsAcc(:,2)=accelerationYopt(optCoeffs(2),time_int);
+dotsAcc(:,3)=accelerationOpt(optCoeffs(1),optCoeffs(2),time_int); 
 
-% визуализаци€
+%% визуализаци€ результатов  
 figure
 hold on
 grid on;
@@ -268,7 +267,7 @@ hold off
 
 figure
 hold on
-plot(time_int,dotsVel,'Blue', 'LineWidth', 1.5);
+plot(time_int,dotsVel(:,3),'Blue', 'LineWidth', 1.5);
 plot(time_int,maxVelocityList,'Red', 'LineWidth', 0.5);
 xlabel('t') 
 ylabel('v') 
@@ -276,12 +275,55 @@ hold off
 
 figure
 hold on
-plot(time_int,dotsAcc,'Blue', 'LineWidth', 1.5);
+plot(time_int,dotsAcc(:,3),'Blue', 'LineWidth', 1.5);
 plot(time_int,maxAccelerationList,'Red', 'LineWidth', 0.5);
 ylim([0 maxAcceleration+0.5])
 xlabel('t') 
 ylabel('a') 
 hold off
+
+figure
+hold on
+plot(time_int,dotsPolynomX,'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('x') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsPolynomY,'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('y') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsVel(:,1),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('v_x') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsVel(:,2),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('v_y') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsAcc(:,1),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('a_x') 
+hold off
+
+figure
+hold on
+plot(time_int,dotsAcc(:,2),'Blue', 'LineWidth', 1.5);
+xlabel('t') 
+ylabel('a_y') 
+hold off
+%% 
 
 %{ 
 визуализаци€ ограничений + проверка
@@ -320,10 +362,10 @@ function [c,ceq] = constrglob(x)
 global vstar;
 global astar;
 global mechAstar;
-global mechBstar;
-global mechCstar;
+% global mechBstar;
+% global mechCstar;
 c =[double(vstar(x(1),x(2))); double(astar(x(1),x(2)));...
-    double(mechAstar(x(1),x(2))); double(mechBstar(x(1),x(2))); double(mechCstar(x(1),x(2)))];
+    double(mechAstar(x(1),x(2)))];%; double(mechBstar(x(1),x(2))); double(mechCstar(x(1),x(2)))];
 ceq = [];
 end
 

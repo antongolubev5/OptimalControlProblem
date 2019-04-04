@@ -1,21 +1,22 @@
-% 1 подход - разбиваем задачу минимизации на несколькo
-% последовательных задач
-%clc; clear all;
-   
-% начальное и конечное положения системы
+%% исходные данные
 xData = [0,0,1,0]; % x = [x0, x'0, xt, x't]
 yData = [0,0,1,0]; % y = [y0, y'0, yt, y't] 
 
-% механические ограничения
 mechA = [0.3, 0.4, 0.08]; 
 mechB = [0.6, 0.5, 0.08]; 
 mechC = [0.7, 0.75, 0.08];
 
-time = 3;
+time = 2.7;
 maxVelocity = 0.8;
 maxAcceleration = 2;
 
-% коэфф для многочленов Px и Py 4-ых степеней a2=a2(a4)...b3=b3(b4)
+h = 0.01; time_int = 0:h:time; 
+optCoeffs = zeros(round(time/h)+1,2); 
+
+maxVelocityList =  maxVelocity*ones(1, length(time_int));
+maxAccelerationList =  maxAcceleration*ones(1, length(time_int));
+
+%% построение многочленов и ограничений
 syms a4 b4
 LeftSideX = [time^2, time^3; 2*time, 3*time^2];
 RightSideX = [xData(3)-xData(1)-xData(2)*time-a4*time^4; xData(4)-xData(2)-4*a4*time^3];
@@ -57,9 +58,6 @@ global c3handle; c3handle=matlabFunction(-mechConstrA+mechA(3)^2+0.003);
 global c4handle; c4handle=matlabFunction(-mechConstrB+mechB(3)^2+0.003);
 global c5handle; c5handle=matlabFunction(-mechConstrC+mechC(3)^2+0.003);
 
-h = 0.01; time_int = 0:h:time; 
-optCoeffs = zeros(round(time/h)+1,2); 
-
 i = 1;
 for tparam = 0:h:time
 timemoment=tparam;
@@ -89,9 +87,6 @@ dotsPolynomY = zeros(round(time/h)+1,1);
 dotsVel = [zeros(round(time/h)+1,1), zeros(round(time/h)+1,1), zeros(round(time/h)+1,1)]; % vx, vy, |v|
 dotsAcc = [zeros(round(time/h)+1,1), zeros(round(time/h)+1,1), zeros(round(time/h)+1,1)]; % ax, ay, |a|
 
-maxVelocityList =  maxVelocity*ones(1, length(time_int));
-maxAccelerationList =  maxAcceleration*ones(1, length(time_int));
-
 cnt = 1;
 for tparam = 0:h:time
  dotsPolynomX(cnt)=polynomXopt(optCoeffs(cnt,1),tparam);
@@ -108,7 +103,7 @@ for tparam = 0:h:time
  cnt=cnt+1;
 end
 
-% визуализация
+%% визуализация результатов  
 figure
 hold on
 grid on;
@@ -181,7 +176,7 @@ plot(time_int,dotsAcc(:,2),'Blue', 'LineWidth', 1.5);
 xlabel('t') 
 ylabel('a_y') 
 hold off
-
+%% 
 
 function [c,ceq] = constraints(x)
 global c1handle;
