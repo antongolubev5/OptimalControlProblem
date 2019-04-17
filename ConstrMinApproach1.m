@@ -1,4 +1,6 @@
 %% исходные данные
+clc; clear; tic;
+
 xData = [0,0,1,0]; % x = [x0, x'0, xt, x't]
 yData = [0,0,1,0]; % y = [y0, y'0, yt, y't] 
 
@@ -6,7 +8,7 @@ mechA = [0.3, 0.4, 0.08];
 mechB = [0.6, 0.5, 0.08]; 
 mechC = [0.7, 0.75, 0.08];
 
-time = 2.7;
+time = 3;
 maxVelocity = 0.8;
 maxAcceleration = 2;
 
@@ -134,8 +136,10 @@ hold off
 
 figure
 hold on
+grid on;
 plot(time_int,dotsVel(:,3),'Blue', 'LineWidth', 1.5);
 plot(time_int,maxVelocityList,'Red', 'LineWidth', 0.5);
+ylim([0 maxVelocity+0.1])
 xlabel('t') 
 ylabel('v') 
 hold off
@@ -156,9 +160,10 @@ hold off
 
 figure
 hold on
+grid on;
 plot(time_int,dotsAcc(:,3),'Blue', 'LineWidth', 1.5);
 plot(time_int,maxAccelerationList,'Red', 'LineWidth', 0.5);
-ylim([0 maxAcceleration+0.5])
+ylim([0 maxAcceleration+0.1])
 xlabel('t') 
 ylabel('a') 
 hold off
@@ -176,6 +181,7 @@ plot(time_int,dotsAcc(:,2),'Blue', 'LineWidth', 1.5);
 xlabel('t') 
 ylabel('a_y') 
 hold off
+toc;
 %% 
 
 function [c,ceq] = constraints(x)

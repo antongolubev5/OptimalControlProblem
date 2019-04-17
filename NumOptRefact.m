@@ -179,7 +179,7 @@ global WeightConstr;
 lambda=10000;
 c1=0;
 if(abs(WeightConstr(1))>1e-20)
-  c1=WeightConstr(1)*max(acceleration2(xgu, ygu, Tgu,x(1),x(2)))-maxAcceleration2;  
+  c1=WeightConstr(1)*max(acceleration2(xgu, ygu, Tgu,x(1),x(2)))-maxAcceleration2+0.2;  
 end
 c2=0;
 if(abs(WeightConstr(2))>1e-20)
